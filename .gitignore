@@ -24,4 +24,6 @@ $RECYCLE.BIN/
 
 
 dbs/*
+!dbs/readMe.txt
 public/pdfArchives/*
+!public/pdfArchives/readMe.txt
