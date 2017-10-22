@@ -7,6 +7,23 @@
     "mailarchiver_atd": "localDB.js"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.3",
+    "cors": "^2.8.4",
+    "debug": "^2.6.9",
+    "disconnect": "^1.0.2",
+    "exif": "^0.6.0",
+    "exiftool": "^0.0.3",
+    "express": "^4.15.4",
+    "jade": "^1.11.0",
+    "jsonfile": "^2.4.0",
+    "jsontoxml": "^0.0.11",
+    "morgan": "^1.8.2",
+    "node-exiftool": "^2.1.1",
+    "node-xml-stream": "^1.0.2",
+    "pug": "^2.0.0-beta10",
+    "serve-favicon": "^2.4.4",
+    "socket.io": "^1.7.4",
+
     "concat-stream": "^1.6.0",
     "extract-zip": "^1.6.5",
     "json-2-csv": "^2.1.1",
