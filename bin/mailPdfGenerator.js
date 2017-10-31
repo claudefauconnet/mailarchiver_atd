@@ -4,6 +4,8 @@ var pdfDir = "./public/pdfArchives";
 var path = require('path');
 
 
+
+
 mailPdfGenerator = {
 
     createMailPdf: function (mail, fileName, fullPath,sender,senderDirDate ,callback) {

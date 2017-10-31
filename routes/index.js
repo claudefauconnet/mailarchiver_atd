@@ -3,16 +3,11 @@ var router = express.Router();
 var mailManager=require('../bin/mailManager.js');
 
 /* GET home page. */
+
+
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'Express' });
+    res.render('index', { title: 'Express' });
 });
-
-router.get('/findMails', function(req, response, next) {
-    mailManager.findMails(req.query,req.query.format,function (error, result) {
-        processResponse(response, error, result)
-    });
-});
-
 
 
 
@@ -36,6 +31,12 @@ router.post('/processEML', function(req, response) {
     });
 
 })
+
+router.post('/findMails', function(req, response, next) {
+    mailManager.findMails(req.body,req.body.format,function (error, result) {
+        processResponse(response, error, result)
+    },response);
+});
 
 
 
@@ -64,6 +65,9 @@ function processResponse(response,error,result){
             else {
                 if (result.contentType && result.data) {
                     response.setHeader('Content-type', result.contentType);
+                    if(result.contentType=="application/octet-stream")
+                        response.setHeader("Content-Disposition", "attachment;filename=archive.zip");
+                    else
                     response.setHeader("Content-Disposition", "attachment;filename=archive.csv");
                     if (typeof result.data == "object")
                         response.send(JSON.stringify(result.data));

@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <title>Import mails</title>
 
-    <script src="./js/jquery.min.js"></script>
-    <script src="./js/jquery-ui.min.js"></script>
-    <script src="./js/jquery-ui.theme.min.css"></script>
-    <script src="./js/util.js"></script>
-    <script src="./js/pako.js"></script>
-    <script src="./js/mailParser.js"></script>
-    <script src="./js/async.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
+    <script src="js/jquery-ui.theme.min.css"></script>
+    <script src="js/util.js"></script>
+    <script src="js/pako.js"></script>
+    <script src="js/mailParser.js"></script>
+    <script src="js/async.js"></script>
 
 
     <style>
@@ -183,7 +183,8 @@ var totalCountMails=0;
                 } else if (item.isDirectory) {
                     // Get folder contents
 
-                    messageText += "envoi des mails du dossier " + item.fullPath.replace(".sbd", "") + " en cours" + "<br>"
+                    messageText += "Archivage des mails du dossier " + item.fullPath.replace(".sbd", "") + " en cours" + "<br>"
+                    messageText += "Cela peut prendre plusieurs minutes en fonction de la taille de l'archive<br>"
                     setMessage(messageText, "blue");
                     var dirReader = item.createReader();
 

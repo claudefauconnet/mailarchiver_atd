@@ -32,6 +32,7 @@ var path = require('path');
 var converter = require('json-2-csv');
 var extract = require('extract-zip')
 var simpleParser = require('mailparser').simpleParser;
+var zipdir = require('zip-dir');
 
 var serverParams = require('./serverParams.js')
 
@@ -88,76 +89,102 @@ var mailManager = {
     ,
 
 
-    findMails: function (query, format, callback) {
+    findMails: function (query, format, callback,response) {
         var xxx = query;
+        var sender;
         if (!format)
             format = "count";
-        else
+        else {
+            sender=query.sender;
             delete query.format;
+        }
 
-        //    console.log(JSON.stringify(query));
-        localDB.find(query, function (err, result) {
-            if (err)
-                return callback(err);
+        if (format == "downloadPdfs") {
+            if (!sender) {
+                return callback("a sender is needed");
+            }
 
-            var ouput = "";
-            if (format == 'count') {
-                return callback(null, result.length + " mails");
-            }
-            if (format == 'json') {
-                return callback(null, result);
-            }
-            if (format == 'csv') {
-                var str = "";
-                var keys = [];
-                var sep = "\t"
-                for (var i = 0; i < result.length; i++) {
-                    for (var key in result[i]) {
-                        if (keys.indexOf(key) < 0)
-                            keys.push(key)
+            var path = "./public/pdfArchives/" + sender;
+
+            zipdir(path, function (err, buffer) {
+                // `buffer` is the buffer of the zipped file
+           if(err)
+               return  callback(err);
+
+                response.setHeader('Content-type', 'application/zip');
+                response.setHeader("Content-Disposition", "attachment;filename=archive.zip");
+                response.send(buffer);
+            });
+
+
+
+        }
+        else {
+
+            //    console.log(JSON.stringify(query));
+            localDB.find(query, function (err, result) {
+                if (err)
+                    return callback(err);
+
+                var ouput = "";
+                if (format == 'count') {
+                    return callback(null, result.length + " mails");
+                }
+                if (format == 'json') {
+                    return callback(null, result);
+                }
+                if (format == 'csv') {
+                    var str = "";
+                    var keys = [];
+                    var sep = "\t"
+                    for (var i = 0; i < result.length; i++) {
+                        for (var key in result[i]) {
+                            if (keys.indexOf(key) < 0)
+                                keys.push(key)
+
+                        }
 
                     }
 
-                }
-
-                for (var j = 0; j < keys.length; j++) {
-
-                    str += keys[j] + sep
-                }
-                str += key + '\n';
-                var regex = new RegExp("/" + sep + "/g")
-                for (var i = 0; i < result.length; i++) {
                     for (var j = 0; j < keys.length; j++) {
-                        var value = result[i][keys[j]];
-                        if (!value)
-                            value = ""
-                        if (typeof value === "object")
-                            value = value.toString();
-                        //   console.log(value);
 
-                        value = ("" + value).replace(regex, " ");
-
-                        str += value + sep
+                        str += keys[j] + sep
                     }
                     str += key + '\n';
+                    var regex = new RegExp("/" + sep + "/g")
+                    for (var i = 0; i < result.length; i++) {
+                        for (var j = 0; j < keys.length; j++) {
+                            var value = result[i][keys[j]];
+                            if (!value)
+                                value = ""
+                            if (typeof value === "object")
+                                value = value.toString();
+                            //   console.log(value);
+
+                            value = ("" + value).replace(regex, " ");
+
+                            str += value + sep
+                        }
+                        str += key + '\n';
+                    }
+
+
+                    var result = {
+                        data: str,
+                        // contentType: "text/csv"
+                        contentType: "application/x-csv"
+                    }
+
+                    callback(null, result);
+
+
                 }
 
-
-                var result = {
-                    data: str,
-                    // contentType: "text/csv"
-                    contentType: "application/x-csv"
-                }
-
-                callback(null, result);
+                callback(null, "");
 
 
-            }
-
-            callback(null, "");
-
-
-        })
+            })
+        }
     }
 
     ,

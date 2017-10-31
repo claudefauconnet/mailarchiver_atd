@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Find Mails</title>
+
+    <script src="/mailarchiver_atd/js/jquery.min.js"></script>
+    <script src="/mailarchiver_atd/js/jquery-ui.min.js"></script>
+</head>
+<script>
+
+    function setMessage(message, color) {
+        if (color) {
+            $("#message").css("color", color);
+        }
+        $("#message").html(message);
+    }
+
+    function onOutput() {
+
+        var output = $("#output").val();
+        var sender = $("#sender").val();
+        var payload = null;
+
+        payload = {format: output};
+        if (sender && sender != "")
+            payload.sender = sender;
+
+        if (payload) {
+
+            if (output == "csv" || output == "downloadPdfs") {
+                setMessage("le fichier est en cours de téléchargement", "blue")
+                postDownload("/findMails", payload);
+
+            } else {
+
+
+                $.ajax({
+                    type: "POST",
+                    url: "/findMails",
+                    data: payload,
+                    dataType: "json",
+                    success: function (data, textStatus, jqXHR) {
+
+                        if (output == "count") {
+                            setMessage(data.result, "blue")
+                        }
+                        if (output == "json") {
+                            setMessage(data.result, "black")
+                        }
+
+                    }
+                    , error: function (xhr, err, msg) {
+                        var messageText = "ERREUR" + err;
+                        setMessage(messageText, "red")
+
+                    }
+
+                });
+            }
+        }
+
+
+    }
+    postDownload = function (url, payload) {
+        // Build a form
+        var form = $('<form></form>').attr('action', url).attr('method', 'post');
+        // Add the one key/value
+        for (var key in payload) {
+            form.append($("<input></input>").attr('type', 'hidden').attr('name', key).attr('value', payload[key]));
+        }
+        //send request
+        form.appendTo('body').submit().remove();
+    };
+
+
+</script>
+<body>
+
+<b>Consulation des archives mail Thunderbird</b>
+<table>
+    <tr>
+        <td> expéditeur</td>
+        <td><input id="sender"></td>
+    </tr>
+    <tr>
+        <td> sortie</td>
+        <td><select id="output" onchange="onOutput()">
+            <option></option>
+            <option value="count">compter les mails</option>
+            <option value="csv">export CSV (sans contenu)</option>
+            <option value="json">export json (sans contenu)</option>
+            <option value="downloadPdfs">télécharger les dossiers des pdf</option>
+
+
+        </select></td>
+    </tr>
+
+</table>
+<div id="message"></div>
+</body>
+</html>
