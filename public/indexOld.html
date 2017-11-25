@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Import mails</title>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
+    <script src="js/jquery-ui.theme.min.css"></script>
+    <script src="js/util.js"></script>
+    <script src="js/pako.js"></script>
+    <script src="js/mailParser.js"></script>
+    <script src="js/async.js"></script>
+
+
+    <style>
+
+        body {
+            font-family: Verdana;
+            font-size: 14px;
+        }
+
+        input, button, div {
+            margin: 10px;
+        }
+
+        #submitButton {
+        / / visibility: hidden;
+        }
+
+        #dropZone {
+            width: 300px;
+            height: 200px;
+            border-style: groove;
+            border-width: 3px;
+            background-color: #aaaaaa;
+        }
+
+        .text {
+            padding: 20px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .version {
+            font-size: 10px;
+            font-weight: normal;
+        }
+
+    </style>
+
+    <script>
+        var totalCountMails = 0;
+        var archive = "";
+        var messageText = "";
+        var sender;
+        var currentLevel = 0;
+        var maxLevels = 3;
+        var currentDirName = "";
+        var stopAsync=false;
+        var dirCountMails=0
+
+        var nRoodirs = 0;
+        $(function () {
+            var log = "";
+            var ajaxCallBack = function (err, result) {
+
+
+                /* if (err) {
+                 messageText += "ERROR" + err + "<br>"
+                 return setMessage(messageText, "blue");
+                 }
+                 else
+                 messageText += result + "<br>"
+                 setMessage(messageText, "blue");*/
+            }
+
+            function traverseFileTree(item, path, _callback) {
+
+
+                var callback = _callback;
+                if( stopAsync==true)
+                   return  callback("stop");
+                path = path || "";
+                var mailMaxSize = parseInt($("#mailMaxSize") * 1000);
+
+                if (item.isFile) {
+
+                    $("body").css("cursor", "progress");
+                    // Get file
+                    var fullPath = item.fullPath;
+                    item.file(function (file) {
+                        if (file.name + ".sbd" != currentDirName) {
+
+                        }
+                        //  var simpleParser = simpleParser;
+
+
+                        var reader = new FileReader();
+                        reader.onload = function (e2) {
+
+                            var result = e2.target.result;//npm init
+                            //   console.log(result);
+                            var p = result.indexOf("base64,");
+                            if (p < 0) {
+                                messageText += "le fichier " + file.name + " ne peut être lu (>200Mo?)<br>"
+                                callback(null, messageText)
+
+                            }
+
+                            var result2 = result.substring(p + 7)
+                            var txt = util.decode64(result2);
+                            //    console.log("---------------------------------------");
+                            //   console.log(txt);
+                            //  txt=txt.replace('\n','!__!')
+                            //   var mails = txt.split("X-Mozilla-Status");
+                            var mails = []
+                            var start = 0, end = 0;
+                            var start = txt.indexOf("X-Mozilla-Status:");
+                            while ((end = txt.indexOf("X-Mozilla-Status:", start + 1)) > -1) {
+                                var mail = txt.substring(start, end);
+                                start = end;
+                                mails.push(mail);
+
+                            }
+                            if (end < 0)//last
+                                mails.push(txt.substring(start));
+                            log = ""
+                            async.eachSeries(mails, function (mail, ajaxCallBack) {
+                                    //  for (var i = 1; i < mails.length; i++) {
+                                    //   var mail = mails[i];
+                                    if( stopAsync==true)
+                                      return  ajaxCallBack("stop");
+
+                                    if (mail.length > mailMaxSize) {
+                                        //  var p=mail.indexOf("Subject:")
+                                        var subject = mail.match(/[\n]Subject:(.*)/);
+
+                                        if (Array.isArray(subject))
+                                            subject = subject[0];
+                                        if (!subject)
+                                            subject = "";
+                                        if (subject.length > 20)
+                                            subject = subject.substring(0, 20) + "...";
+                                        messageText += " REJETE  : sujet " + subject + "trop gros (piece jointe)? " + Math.round(mail.length / 1000) + " ko (max " + mailMaxSize + ")<br>"
+
+                                        ajaxCallBack(null, message);
+                                    }
+                                    else {
+                                        dirCountMails += 1;
+                                        totalCountMails += 1;
+
+                                        var payload = {
+                                            eml: mail,
+                                            fileName: file.name,
+                                            fullPath: fullPath,
+                                            sender: sender
+                                        }
+
+                                        $.ajax({
+                                            type: "POST",
+                                            url: "/processEML",
+                                            data: payload,
+                                            dataType: "json",
+                                            success: function (data, textStatus, jqXHR) {
+
+                                                ajaxCallBack(null, "done")
+                                            }
+                                            , error: function (xhr, err, msg) {
+                                                messageText += "ERREUR" + err;
+                                                setMessage(messageText, "red");
+                                                stopAsync=true;
+                                                ajaxCallBack(err)
+                                            }
+
+                                        });
+                                    }
+                                    //  console.log("File:", path + file.name +"  "+ mail.length +"  "+mail.substring(0,50));
+
+
+                                },
+                                function (err) {
+                                    if (err) {
+                                        stopAsync=true;
+                                        return callback(err);
+                                    }
+                                    messageText += "dossier " + fullPath + " terminé nombre de mails importés : " + dirCountMails + "<br>";
+                                    setMessage(messageText, "green")
+                                    $("body").css("cursor", "default");
+                                    callback(null ,"done")
+                                })
+
+
+                        }
+
+
+                        reader.readAsDataURL(file);
+                    });
+                } else if (item.isDirectory) {
+                    // Get folder contents
+                    currentLevel += 1
+                    if (currentLevel > maxLevels) {
+                        stopAsync=true;
+                        var str = "<b>ERREUR : Plus de 3 niveau de mails sont présents dans l'archive</b>b>  "
+                        messageText += str + "<br>"
+                        setMessage(messageText, "red");
+                        callback(str);
+
+                    }
+                    messageText += "Archivage des mails du dossier " + item.fullPath.replace(".sbd", "") + " en cours" + "<br>"
+                    setMessage(messageText, "blue");
+                    var dirReader = item.createReader();
+
+                    dirReader.readEntries(function (entries) {
+                       /* if (entries.length > 2) {
+                            var str = "<b>ERREUR:Le dossier " + item.name + " contient des mails alors qu'il ne devrait contenir que des sous-dossiers<b>"
+                            messageText += str;
+                            setMessage(messageText, "red");
+                            stopAsync=true;
+                            callback(str);
+
+                        }*/
+
+                        for (var i = 0; i < entries.length; i++) {
+
+
+                            traverseFileTree(entries[i], path + item.name + "/", callback);
+
+                        }
+
+                    });
+
+                }
+            }
+
+
+            dropZone.addEventListener('dragover', function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+
+            dropZone.addEventListener("drop", function (event) {
+
+                messageText = "";
+                totalCountMails = 0;
+                dirCountMails = 0;
+                stopAsync=false;
+                setMessage(messageText, "black")
+                event.preventDefault();
+                if (!checkForm()) {
+                    return;
+                }
+
+                var items = event.dataTransfer.items;
+                async.eachSeries(items, function (item, callback) {
+                    item = item.webkitGetAsEntry();
+                    if (item) {
+                        console.log(item.fullPath)
+                        traverseFileTree(item, null, function (err, result) {
+                            if (err) {
+
+                                 callback(err);
+                            }
+                            callback(null);
+
+                        });
+                    }
+                }, function (err) {
+                    if(err){
+                        messageText =err;
+                       return setMessage(messageText, "red")
+                    }
+
+                    messageText += "<b>Import archive  terminé, nombre de mails importés : " + totalCountMails + "</b>";
+                  //  alert("Import archive  terminé, nombre de mails importés : " + totalCountMails )
+                    setMessage(messageText, "green")
+
+                });
+            }, false);
+        })
+
+
+        function checkForm() {
+            currentLevel = 0;
+            var file = $("#fileInput").val();
+            if (file == null || file == "") {
+
+                sender = $("#senderInput").val();
+                if (sender == null || sender == "") {
+                    setMessage("Saisisssez un expediteur et déposez l'archive à nouveau sur la zone", "red");
+                    return false;
+                }
+                return true
+            }
+        }
+
+        function setMessage(message, color) {
+            if (color) {
+                $("#message").css("color", color);
+            }
+            $("#message").html(message);
+        }
+
+    </script>
+
+</head>
+<body>
+<p align="center">
+    <span class="title">ATD Quart Monde    Utilitaire d'archivage des mails exportés depuis thunderbird</span>
+    <br><span class="version">version 0.0.1 (test)</span>
+
+
+<table align="center">
+    <tr>
+        <td>
+            Nom de l'expediteur
+        </td>
+        <td>
+            <input id="senderInput" name="sender">
+            Taille maxi pour l'archivage d'un mail (ko) <input id="mailMaxSize" value="500" size="5">
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+
+            <div id="dropZone">deposez le fichier ici</div>
+        </td>
+        <td>
+            <div id="message">statut...</div>
+        </td>
+    </tr>
+</table>
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<span class="title">Mode d'emploi</span>
+<button onclick="$('.text').css('visibility','hidden')">fermer</button>
+
+
+<div class="text">
+    Pour envoyer au service des archives vos archives de mails depusi Thunderbird tout en conservant l'arborescence à 3
+    niveaux des dossiers dans lesquels il sont classés vous devez suivre les étapes suivantes
+    <ol>
+        <li>
+            <b> installez l'add on ImportExportTools </b><br>
+            <ul>
+                <li>
+                    téléchargez le plugin <a
+                        href="https://addons.mozilla.org/en-US/thunderbird/addon/importexporttools/">ici</a>
+                </li>
+                <li>
+                    installez le plugin<br>
+                    <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver2.png"
+                                                                             width="300px">
+                </li>
+                <li>
+                    redemarrez thunderbird
+                </li>
+
+            </ul>
+
+        </li>
+
+        <li>
+            <b>exportez votre arborescence de mails </b>
+
+            <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver3.png" width="300px">
+
+
+        </li>
+
+        <li>
+            <b>compressez le dossier exporté dans un fichier .zip </b>
+
+            <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver3.png" width="300px">
+
+
+        </li>
+
+        <li>
+            <b>envoyez l'archive zip en la téléchargeant dans l'interface ci-dessus</b>
+
+        </li>
+
+
+    </ol>
+
+
+</div>
+
+
+</p>
+
+
+</body>
+</html>
