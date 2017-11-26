@@ -33,7 +33,7 @@ var converter = require('json-2-csv');
 var extract = require('extract-zip')
 var simpleParser = require('mailparser').simpleParser;
 var zipdir = require('zip-dir');
-
+var common = require("./common.js")
 var serverParams = require('./serverParams.js')
 
 var localDB = require('./localDB.js');
@@ -188,24 +188,7 @@ var mailManager = {
     }
 
     ,
-    deleteFolderRecursive: function (path) {
-        try {
-            if (fs.existsSync(path)) {
-                fs.readdirSync(path).forEach(function (file, index) {
-                    var curPath = path + "/" + file;
-                    if (fs.lstatSync(curPath).isDirectory()) { // recurse
-                        deleteFolderRecursive(curPath);
-                    } else { // delete file
-                        fs.unlinkSync(curPath);
-                    }
-                });
-                fs.rmdirSync(path);
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    ,
+
 
 
     upload: function (req, fieldName, callback) {
@@ -241,7 +224,7 @@ var mailManager = {
             var archiveRootDir = req.file.originalname.substring(0, req.file.originalname.lastIndexOf("."));
             var sender = req.body.sender;
             var archiveRootDir = path.normalize(extractDir + archiveRootDir);
-            deleteFolderRecursive(archiveRootDir);
+            common.deleteFolderRecursive(archiveRootDir);
             extract(file, {dir: extractDir}, function (err) {
                 if (err) {
                     console.log(err);

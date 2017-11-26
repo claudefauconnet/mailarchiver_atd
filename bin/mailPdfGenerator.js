@@ -3,12 +3,27 @@ var PDFDocument = require('pdfkit');
 var pdfDir = "./public/pdfArchives";
 var path = require('path');
 var common = require("./common.js")
-
+var mailManager = require("./mailManager.js")
 
 mailPdfGenerator = {
 
     createMailPdf: function (mail, fileName, fullPath, sender, senderDirDate, callback) {
         try {
+
+            sender = mailPdfGenerator.formatStringForArchive(sender, 30);
+            var mailTitle = "mail_sans_sujet_" + Math.round(Math.random() * 1000000);
+            if (mail.subject) {
+                mailTitle = mailPdfGenerator.removeMaultipleReAndFwd(mail.subject);
+                mailTitle = mailPdfGenerator.formatStringForArchive(mailTitle, common.maxPdfSubjectLength);
+            }
+            if (mail.html)
+                mail.html = mailPdfGenerator.removeHtmlTags(mail.html);
+
+
+            var todayArchivedir = pdfDir + "/" + sender + "/" + senderDirDate;
+            /*  if (fs.existsSync(todayArchivedir)) {
+             common.deleteFolderRecursive(todayArchivedir);
+             }*/
             // h.substring(0,fullPath.lastI)
             //   fullPath = (path.dirname(fullPath));
             fileName = common.toAscii(common.truncate(fileName, common.maxDirLength));
@@ -31,13 +46,11 @@ mailPdfGenerator = {
 
             var pdfFileName = mail.date.toString('yyyy-MM-dd');
             var index = Math.round(Math.random() * 10000)
-            var subject = "mail_sans_sujet";
-            if (mail.subject) {
-                subject = common.toAscii(common.truncate(mail.subject, common.maxPdfSubjectLength));
-                subject = subject.replace(/ /g, "_");
-            }
 
-            var pdfFileName = common.dateToString(mail.date) + "-" +subject + ".pdf"
+
+            if (mailTitle == "Re_outil_de_recuperation_des_arborescence_courrie")
+                var xxx = mail;
+            var pdfFileName = common.dateToString(mail.date) + "-" + mailTitle + ".pdf"
             //  var pdfFileName = index + ".pdf"
 
 
@@ -91,7 +104,10 @@ mailPdfGenerator = {
             doc.fontSize(fontSize.title)
             doc.text('text : ', {width: textWidth, align: 'left'})
             doc.fontSize(fontSize.small)
-            doc.text(mail.text, {width: textWidth, align: 'left'})
+            if (mail.text)
+                doc.text(mail.text, {width: textWidth, align: 'left'})
+            if (mail.html)
+                doc.text(mail.html, {width: textWidth, align: 'left'})
 
             doc.end();
 
@@ -100,9 +116,33 @@ mailPdfGenerator = {
         catch (e) {
             callback(e)
         }
+    },
+    formatStringForArchive: function (str, maxLength) {
+        str = common.toAscii(common.truncate(str, maxLength));
+        str = str.replace(/ /g, "_");
+        str = common.replaceNonLetterOrNumberChars(str, "")
+        return str;
+    },
+    removeMaultipleReAndFwd: function (str) {
+        var re = /Re[_:]/gi
+        var fwd = /Fwd[_:]/gi
+
+        var reArray = str.match(re);
+        if (reArray && reArray.length > 1)
+            str = "Re-" + reArray.length + "_" + str.replace(re, "");
+        var fwdArray = str.match(fwd);
+        if (fwdArray && fwdArray.length > 1)
+            str = "Fwd-" + fwdArray.length + "_" + str.replace(fwd, "");
+        return str;
+    },
+    removeHtmlTags: function (str) {
+        str = str.replace(/<\/p>/gi, "\n");
+        str = str.replace(/<BR>/gi, "\n");
+        str = str.replace(/<[^>]*>/gi, "");
+    },
 
 
-    }
 }
+
 
 module.exports = mailPdfGenerator;

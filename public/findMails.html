@@ -4,11 +4,21 @@
     <meta charset="UTF-8">
     <title>Find Mails</title>
 
-    <script src="/mailarchiver_atd/js/jquery.min.js"></script>
-    <script src="/mailarchiver_atd/js/jquery-ui.min.js"></script>
+  <!--  <script src="/mailarchiver_atd/js/jquery.min.js"></script>
+    <script src="/mailarchiver_atd/js/jquery-ui.min.js"></script>-->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
+    <script src="js/util.js"></script>
 </head>
 <script>
+    $(function () {
 
+        var queryParams = util.getQueryParams(document.location.search);
+        if (queryParams.sender) {
+            $("#sender").val(queryParams.sender);
+
+        }
+    })
     function setMessage(message, color) {
         if (color) {
             $("#message").css("color", color);

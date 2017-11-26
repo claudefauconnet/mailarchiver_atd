@@ -10,6 +10,7 @@
     <script src="js/util.js"></script>
     <script src="js/pako.js"></script>
     <script src="js/async.js"></script>
+    <script src="js/base64.min.js"></script>
 
     <script src="js/archiveProcessor.js"></script>
     <script src="js/resources.js"></script>
@@ -20,8 +21,13 @@
             font-size: 14px;
         }
 
-        input, button, div {
+        input, button, select,div {
             margin: 10px;
+
+        }
+        input, button,select  {
+
+            background-color:lightsteelblue;
         }
 
         #submitButton {
@@ -56,6 +62,9 @@
         var messageText = "";
         var log = "";
         var currentLang = "FR";
+        var currentSender;
+        "";
+        var currentResultInfos;
 
 
         $(function () {
@@ -86,25 +95,58 @@
                 if (!checkForm()) {
                     return;
                 }
-
+                $("#waitImg").css("visibility", "visible");
                 var data = event.dataTransfer.items;
                 archiveProcessor.readData(data, "checkRules", function (err, result) {
+                    $("#waitImg").css("visibility", "hidden");
                     if (err) {
                         messageText += err[currentLang];
                         setMessage(messageText, "red")
                         console.log(err);
+                        setMessage(err);
+
                         return;
                     }
-                    var infos=JSON.stringify(result,null,2).replace(/\n/g,"<br>");
+                    currentResultInfos = JSON.stringify(result, null, 2).replace(/\n/g, "<br>");
+                    var message = resources.Message_archiveIsUploaded[currentLang] + "" + (archiveProcessor.totalCountUploadedMails) + "/" + (archiveProcessor.totalCountMails);
+                    if (self.totalCountMailsWithAttachements > 0)
+                        message = "<br><b>" + self.totalCountMailsWithAttachements + " " + resources.Warning_mailWithAttachment[currentLang] + "</b></br>";
+                    message += "<button id='showResultInfosButton' onclik='showResultInfos()'>" + resources.Button_seeResultInfo[currentLang] + "</button>";
+                    message += "<button id='downloadArchiveButton'  onclik='downloadArchive()'>" + resources.Button_downloadArchive[currentLang] + "</button>";
+                  //  console.log(message)
+                    setMessage("<B>" + message + "</B><br>");
+                    $("#showResultInfosButton").on("click",function(){
+                        $("#message").append("<br>" + currentResultInfos);
+                    });
+                    $("#downloadArchiveButton").on("click",function(){
+                        downloadArchive();
+                    })
 
-                    setMessage("<B>"+resources.Message_archiveIsUploaded[currentLang]+"</B>"+archiveProcessor.totalCountUploadedMails+"/"+archiveProcessor.totalCountMails+"<br>"+infos);
 
 
                 });
             })
         })
+        function changeLang(select) {
+            currentLang = $(select).val();
+            archiveProcessor.currentLang = currentLang;
+            for( var key in resources.texts[currentLang]){
 
+                $("#"+key).html(resources.texts[currentLang][key]);
+            }
+        }
 
+        function showResultInfos(){
+            $("#message").append("<br>" + currentResultInfos);
+        }
+        function downloadArchive(){
+            var url="./findMails.html?sender="+currentSender;
+            window.location.href=url;
+        }
+        function showModeDemploi(){
+            var url="./modeDemploi_"+currentLang+".html";
+            window.location.href=url;
+        }
         function checkForm() {
             currentLevel = 0;
             var file = $("#fileInput").val();
@@ -115,12 +157,21 @@
                     setMessage("Saisisssez un expediteur et déposez l'archive à nouveau sur la zone", "red");
                     return false;
                 }
+                currentSender=sender;
                 archiveProcessor.sender = sender;
                 archiveProcessor.mailMaxSize = parseInt($("#mailMaxSize").val());
                 archiveProcessor.currentLang = currentLang;
 
 
                 return true;
+            }
+        }
+        function changeLang(select) {
+            currentLang = $(select).val();
+            archiveProcessor.currentLang = currentLang;
+            for( var key in resources.texts[currentLang]){
+
+                $("#"+key).html(resources.texts[currentLang][key]);
             }
         }
 
@@ -137,96 +188,47 @@
 </head>
 <body>
 <p align="center">
-    <span class="title">ATD Quart Monde    Utilitaire d'archivage des mails exportés depuis thunderbird</span>
-    <br><span class="version">version 0.0.1 (test)</span>
+    <span class="title"  id="text1"> ATD Quart Monde    Utilitaire d'archivage des mails exportés depuis thunderbird</span>
+    <select id="langSelect" on onclick="changeLang(this)">
+        <option>EN</option>
+        <option selected="selected">FR</option>
+        <option>SP</option>
 
+    </select>
+    <br><span class="version">version 0.2.a (beta) 25/11/2017 </span>
+    <br><img id="waitImg" src="images/waitAnimated.gif" width="50px" style="visibility: hidden;">
 
 <table align="center">
     <tr>
         <td>
-            Nom de l'expediteur
+            <span id="text2">Nom de l'expediteur</span>
+            <input id="senderInput" name="sender" value="">
+            <br>
+            <span id="text3">Taille maxi pour l'archivage d'un mail (ko)</span> <input id="mailMaxSize" value="500" size="5">
+            <br>
+            <button onclick="showModeDemploi()"><span id="text5">Mode d'emploi</span>
+            </button>
         </td>
-        <td>
-            <input id="senderInput" name="sender" value="XXXXXXXXXXXXXXX">
-            Taille maxi pour l'archivage d'un mail (ko) <input id="mailMaxSize" value="500" size="5">
+
+      <td>
+
+            <div id="dropZone">  <span id="text4">deposez le fichier ici en le glissant</span></div>
         </td>
-    </tr>
+        </tr>
     <tr>
         <td colspan="2">
-
-            <div id="dropZone">deposez le fichier ici</div>
-        </td>
-        <td>
-            <div id="message">statut...</div>
+            <div id="message">.</div>
         </td>
     </tr>
 </table>
 
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<span class="title">Mode d'emploi</span>
-<button onclick="$('.text').css('visibility','hidden')">fermer</button>
 
 
-<div class="text">
-    Pour envoyer au service des archives vos archives de mails depusi Thunderbird tout en conservant l'arborescence à 3
-    niveaux des dossiers dans lesquels il sont classés vous devez suivre les étapes suivantes
-    <ol>
-        <li>
-            <b> installez l'add on ImportExportTools </b><br>
-            <ul>
-                <li>
-                    téléchargez le plugin <a
-                        href="https://addons.mozilla.org/en-US/thunderbird/addon/importexporttools/">ici</a>
-                </li>
-                <li>
-                    installez le plugin<br>
-                    <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver2.png"
-                                                                             width="300px">
-                </li>
-                <li>
-                    redemarrez thunderbird
-                </li>
-
-            </ul>
-
-        </li>
-
-        <li>
-            <b>exportez votre arborescence de mails </b>
-
-            <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver3.png" width="300px">
 
 
-        </li>
-
-        <li>
-            <b>compressez le dossier exporté dans un fichier .zip </b>
-
-            <img src="./images/mailArchiver1.png" width="300px"><img src="./images/mailArchiver3.png" width="300px">
 
 
-        </li>
-
-        <li>
-            <b>envoyez l'archive zip en la téléchargeant dans l'interface ci-dessus</b>
-
-        </li>
-
-
-    </ol>
-
-
-</div>
-
-
-</p>
 
 
 </body>

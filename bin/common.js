@@ -4,22 +4,26 @@ var common = {
     maxDirLength: 30,
 
 
-    dateToString : function(date) {
-    var mm = date.getMonth() + 1; // getMonth() is zero-based
-    var dd = date.getDate();
+    dateToString: function (date) {
+        var mm = date.getMonth() + 1; // getMonth() is zero-based
+        var dd = date.getDate();
 
-    return [date.getFullYear(),
-        (mm>9 ? '' : '0') + mm,
-        (dd>9 ? '' : '0') + dd
-    ].join('-');
-},
-    truncate:function(str,length){
-        if(str.length>length)
-            str=str.substring(0,length)
+        return [date.getFullYear(),
+            (mm > 9 ? '' : '0') + mm,
+            (dd > 9 ? '' : '0') + dd
+        ].join('-');
+    },
+    truncate: function (str, length) {
+        if (str.length > length)
+            str = str.substring(0, length)
         return str;
 
     },
 
+    replaceNonLetterOrNumberChars: function (str, replaceBy) {
+        return str.replace(/[^a-zA-Z0-9_]/g, replaceBy);
+
+    },
 
     toAscii: function getAscii(str) {
         var conversions = new Object();
@@ -78,6 +82,23 @@ var common = {
             str = str.replace(re, i);
         }
         return str;
+    },
+    deleteFolderRecursive: function (path) {
+        try {
+            if (fs.existsSync(path)) {
+                fs.readdirSync(path).forEach(function (file, index) {
+                    var curPath = path + "/" + file;
+                    if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                        common.deleteFolderRecursive(curPath);
+                    } else { // delete file
+                        fs.unlinkSync(curPath);
+                    }
+                });
+                fs.rmdirSync(path);
+            }
+        } catch (e) {
+            console.log(e);
+        }
     }
 
 

@@ -63,8 +63,15 @@ var util = (function () {
     }
 
         ,
+        self.decode64ToUTF8=function(str) {
+            return decodeURIComponent(Array.prototype.map.call(atob(str), function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            }).join(''))
+        }
 
-        self.decode64 = function (str) {
+
+
+    self.decode64 = function (str) {
 
             /**
              * Decode string from Base64, as defined by RFC 4648 [http://tools.ietf.org/html/rfc4648].
@@ -351,6 +358,15 @@ var util = (function () {
 
 
         return str;
+    }
+
+    self.getQueryParams = function (qs) {
+        qs = qs.split("+").join(" ");
+        var params = {}, tokens, re = /[?&]?([^=]+)=([^&]*)/g;
+        while (tokens = re.exec(qs)) {
+            params[decodeURIComponent(tokens[1])] = decodeURIComponent(tokens[2]);
+        }
+        return params;
     }
 
 

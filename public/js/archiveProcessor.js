@@ -15,6 +15,7 @@ var archiveProcessor = (function () {
     self.stopAsync = null;
     self.currentLang = "FR;"
 self.totalCountUploadedMails=0;
+    self.totalCountMailsWithAttachements=0;
     self.currentAction;
     self.dirStatus = {};
 
@@ -24,6 +25,7 @@ self.totalCountUploadedMails=0;
         self.currentNumberOfLevels = 0;
         self.totalCountMails = 0;
         self.totalCountUploadedMails=0;
+        self.totalCountMailsWithAttachements=0;
         async.eachSeries(data, function (item, callbackInner) {
             item = item.webkitGetAsEntry();
             if (item) {
@@ -41,9 +43,9 @@ self.totalCountUploadedMails=0;
             }
         }, function (err) {
             if (err) {
-                callback(err);
+              return   callback(err);
             }
-            console.log(JSON.stringify(self.dirStatus, null, 2))
+           // console.log(JSON.stringify(self.dirStatus, null, 2))
             var recursiveJobDone = true;
             for (var key in self.dirStatus) {
                 if (self.dirStatus[key].status != "done")
@@ -124,19 +126,20 @@ self.totalCountUploadedMails=0;
         self.dirCountMails = 0
         self.extractMailsFromEmx(emlContent64, emlFileName, function (err, mails) {
             // for each email in eml
+            var mailsToUpload = []
             for (var i = 0; i < mails.length; i++) {
                 var mail = mails[i];
-                var mailsToUpload = []
+
                 if (self.stopAsync != null)
                     return callback("stop");
                 var subject=self.extractMailSubject(mail)
                 self.totalCountMails += 1;
                 self.dirCountMails += 1;
-                if (self.checkIfMailIsWithoutAttachements(mail,subject, emlFileName)) {
+                mail=self.checkIfMailIsWithoutAttachements(mail,subject, emlFileName);
 
 
                     mailsToUpload.push(mail);
-                }
+
             }
             async.eachSeries(mailsToUpload, function (mail, eachCallBack) {
                     var message = emlFileName + " " + subject + " : "
@@ -192,20 +195,33 @@ self.totalCountUploadedMails=0;
 
 
     self.extractMailsFromEmx = function (emlContent64, fileName, callback) {
+
         var mails = [];
         var emlContent;
         var p = emlContent64.indexOf("base64,");
         if (p < 0) {
-            callback(resources.Exception_emlFileNotInBase64 + " : " + fileName)
+            callback(resources.Exception_emlFileNotInBase64[self.currentLang] + " : " + fileName)
         }
 
         emlContent64 = emlContent64.substring(p + 7)
         try {
-            emlContent = util.decode64(emlContent64);
+          //  emlContent = util.decode64(emlContent64);
+           // emlContent = util.decode64ToUTF8(emlContent64);
+            emlContent=Base64.decode(emlContent64);
+
         }
         catch (e) {
-            callback(resources.Exception_emlFileNotInBase64 + " : " + fileName)
+            console.log(e);
+            try{
+                emlContent = util.decode64(emlContent64);
+            }
+            catch(e2){
+                callback(resources.Exception_emlFileNotInBase64[self.currentLang] + " : " + fileName)
+            }
+
         }
+
+
 
         var mails = []
         var start = 0, end = 0;
@@ -214,6 +230,7 @@ self.totalCountUploadedMails=0;
             var mail = emlContent.substring(start, end);
             start = end;
             mails.push(mail);
+
 
         }
         if (end < 0)//last
@@ -234,15 +251,18 @@ self.totalCountUploadedMails=0;
         return subject;
     }
     self.checkIfMailIsWithoutAttachements = function (mail, subject, emlFileName) {
-     //   if (mail.length > (self.mailMaxSize * 1000)) {
-        if(mail.indexOf("Content-Transfer-Encoding: base64")>-1){
 
-            var message = emlFileName + "/" + subject + " : " + resources.Warning_mailWithAttachment[self.currentLang]
+     //   if (mail.length > (self.mailMaxSize * 1000)) {
+        var p=mail.indexOf("Content-Transfer-Encoding: base64")
+        if(p>-1){
+            self.totalCountMailsWithAttachements+=1;
+          //  console.log("\n----------------"+mail.substring(p,p+100)+"\n******************")
+            var message = emlFileName + "/" + subject + " : " + resources.Warning_mailWithAttachment[self.currentLang];
+
             self.dirStatus[emlFileName].infos.push(message)
-            self.addMessage(message);
-            return false;
+            return mail.substring(0,p);
         }
-        return true;
+        return mail;
     }
 
 
@@ -258,7 +278,7 @@ self.totalCountUploadedMails=0;
                 hasMails = true;
 
             if (hasDir && hasMails)
-                return callback(resources.Exception_fileAnDirAtSameLevel + " : " + entries[i].name)
+                return callback(resources.Exception_fileAnDirAtSameLevel[self.currentLang] + " : " + entries[i].name)
         }
 
         return callback(null);
@@ -276,7 +296,7 @@ self.totalCountUploadedMails=0;
         }
 
         if (self.currentNumberOfLevels >= self.maxLevels)
-            return callback(resources.Exception_maxLevelsExceeded + " : " + entries[p].name)
+            return callback(resources.Exception_maxLevelsExceeded[self.currentLang] + " : " + entries[p].name)
         return callback(null);
 
 
