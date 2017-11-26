@@ -1,9 +1,9 @@
 /*******************************************************************************
- * SOUSLESENS LICENSE************************
+ * mailArchiver_ATD LICENSE************************
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2016-2017 Claude Fauconnet claude.fauconnet@neuf.fr
+ * Copyright (c) 2017 Claude Fauconnet claude.fauconnet@neuf.fr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ var extract = require('extract-zip')
 var simpleParser = require('mailparser').simpleParser;
 var zipdir = require('zip-dir');
 var common = require("./common.js")
-var serverParams = require('./serverParams.js')
+
 
 var localDB = require('./localDB.js');
 var mailPdfGenerator = require('./mailPdfGenerator.js');
