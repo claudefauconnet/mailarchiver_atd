@@ -35,53 +35,69 @@ var path = require('path');
 var common = require("./common.js")
 var mailManager = require("./mailManager.js")
 
+var addMetaData=true;
 mailPdfGenerator = {
 
     createMailPdf: function (mail, fileName, fullPath, sender, senderDirDate, callback) {
-        try {
+        //  try {
 
-            sender = mailPdfGenerator.formatStringForArchive(sender, 30);
-            var mailTitle = "mail_sans_sujet_" + Math.round(Math.random() * 1000000);
-            if (mail.subject) {
-                mailTitle = mailPdfGenerator.removeMaultipleReAndFwd(mail.subject);
-                mailTitle = mailPdfGenerator.formatStringForArchive(mailTitle, common.maxPdfSubjectLength);
+        sender = mailPdfGenerator.formatStringForArchive(sender, 30);
+
+        if (mail.html)
+            mail.html = mailPdfGenerator.removeHtmlTags(mail.html);
+        if (mail.text)
+            mail.text = mailPdfGenerator.removeHtmlTags(mail.text);
+        /*    if (mail.messageId=="<630802301.184128.1511534903112.JavaMail.www@wsfrf1408>")
+         console.log( "----------------------------------------------\n"+mail.text )
+         if (mail.messageId=="<630802301.184128.1511534903112.JavaMail.www@wsfrf1408>")
+         console.log( mail.html )*/
+
+        /*  var todayArchivedir = pdfDir + "/" + sender + "/" + senderDirDate;
+
+         if (fs.existsSync(todayArchivedir)) {
+         common.deleteFolderRecursive(todayArchivedir);
+         }*/
+
+        fileName = common.toAscii(common.truncate(fileName, common.maxDirLength));
+        var dirs = fullPath.split("/");
+        dirs.splice(0, 1) // on enleve le repertoire de lk'archive lui meme (enveloppe)
+        dirs.splice(dirs.length - 1, 1, fileName)//on enleve le nom du repertoire et on ajoute le nom du fichier qui contient les mails du sous répertoire à un niveau donné
+        dirs.splice(0, 0, sender, senderDirDate)
+        var parentDirPath = pdfDir;
+        var relativeFolderPath = "";//pdfDir;//+"/"+sender+"/"+senderDirDate;
+        for (var i = 0; i < dirs.length; i++) {
+            parentDirPath += "/" + dirs[i].replace(".sbd", "");
+
+            relativeFolderPath += "/" + dirs[i].replace(".sbd", "")
+            var dir = path.resolve(parentDirPath)
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir);
             }
-            if (mail.html)
-                mail.html = mailPdfGenerator.removeHtmlTags(mail.html);
+        }
 
 
-            var todayArchivedir = pdfDir + "/" + sender + "/" + senderDirDate;
-            /*  if (fs.existsSync(todayArchivedir)) {
-             common.deleteFolderRecursive(todayArchivedir);
-             }*/
-            // h.substring(0,fullPath.lastI)
-            //   fullPath = (path.dirname(fullPath));
-            fileName = common.toAscii(common.truncate(fileName, common.maxDirLength));
-            var dirs = fullPath.split("/");
-            dirs.splice(0, 1) // on enleve le repertoire de lk'archive lui meme (enveloppe)
-            dirs.splice(dirs.length - 1, 1, fileName)//on enleve le nom du repertoire et on ajoute le nom du fichier qui contient les mails du sous répertoire à un niveau donné
-            dirs.splice(0, 0, sender, senderDirDate)
-            var parentDirPath = pdfDir;
-            var relativeFolderPath = "";//pdfDir;//+"/"+sender+"/"+senderDirDate;
-            for (var i = 0; i < dirs.length; i++) {
-                parentDirPath += "/" + dirs[i].replace(".sbd", "");
+    //    var pdfFileName = mail.date.toString('yyyy-MM-dd');
+     //   var index = Math.round(Math.random() * 10000)
 
-                relativeFolderPath += "/" + dirs[i].replace(".sbd", "")
-                var dir = path.resolve(parentDirPath)
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir);
-                }
+        var mailTitle;
+        if (mail.subject)
+            mailTitle = mail.subject;
+        else
+            mailTitle = "mail_sans_sujet_" + Math.round(Math.random() * 1000000);
+        var pdfFileName = mailTitle;
+        mailTitle = mailPdfGenerator.formatStringForArchive(mailTitle, common.maxPdfSubjectLength);
+
+        mailTitle = mailPdfGenerator.removeMultipleReAndFwdInTitle(mailTitle);
+        pdfFileName = common.dateToString(mail.date) + "-" + mailTitle + ".pdf";
+        pdfFileName = mailPdfGenerator.processDuplicateMailTitles(parentDirPath, pdfFileName);
+
+
+        var attachementsStr = "";
+        if (mail.attachments) {
+            for (var i = 0; i < mail.attachments.length > 0; i++) {
+                var id = mail.attachments[i].contentId;
+                attachementsStr = "-" + mail.attachments[i].filename + (id ? " id : " + id : "") + "\n";
             }
-
-
-            var pdfFileName = mail.date.toString('yyyy-MM-dd');
-            var index = Math.round(Math.random() * 10000)
-
-
-            if (mailTitle == "Re_outil_de_recuperation_des_arborescence_courrie")
-                var xxx = mail;
-            var pdfFileName = common.dateToString(mail.date) + "-" + mailTitle + ".pdf"
-            //  var pdfFileName = index + ".pdf"
 
 
             var doc = new PDFDocument
@@ -94,6 +110,22 @@ mailPdfGenerator = {
                 small: 8
             }
             var textWidth = 500
+
+
+            //metadata
+            if(addMetaData) {
+                if (mail.subject)
+                    doc.info.Title = mail.subject;
+                if (mail.from)
+                    doc.info.Author = mail.from.text;
+            }
+
+
+
+            doc.fontSize(fontSize.title)
+            doc.text('MessageId : ', {width: textWidth, align: 'left'})
+            doc.fontSize(fontSize.text)
+            doc.text(mail.messageId, {width: textWidth, align: 'left'})
 
 
             doc.fontSize(fontSize.title)
@@ -117,6 +149,28 @@ mailPdfGenerator = {
             if (mail.replyTo)
                 doc.text(mail.replyTo.text, {width: textWidth, align: 'left'})
 
+            if (mail.cc && mail.cc.value.length > 0) {
+                doc.moveDown(0.5)
+                doc.fontSize(fontSize.title)
+                //  doc.fontcolor("red")
+                doc.text('cc : ', {width: textWidth, align: 'left'})
+                doc.fontSize(fontSize.text)
+                for (var i = 0; i < mail.cc.value.length; i++) {
+                    doc.text(mail.cc.value[i].address + "\n", {width: textWidth, align: 'left'})
+                }
+
+            }
+            if (mail.cci && mail.cci.value.length > 0) {
+                doc.moveDown(0.5)
+                doc.fontSize(fontSize.title)
+                //  doc.fontcolor("red")
+                doc.text('cci : ', {width: textWidth, align: 'left'})
+                doc.fontSize(fontSize.text)
+                for (var i = 0; i < mail.cci.value.length; i++) {
+                    doc.text(mail.cci.value[i].address + "\n", {width: textWidth, align: 'left'})
+                }
+
+            }
 
             doc.moveDown(0.5)
             doc.fontSize(fontSize.title)
@@ -130,46 +184,108 @@ mailPdfGenerator = {
             doc.fontSize(fontSize.text)
             doc.text(mail.subject, {width: textWidth, align: 'left'})
 
-            doc.moveDown(0.5)
-            doc.fontSize(fontSize.title)
-            doc.text('text : ', {width: textWidth, align: 'left'})
-            doc.fontSize(fontSize.small)
-            if (mail.text)
-                doc.text(mail.text, {width: textWidth, align: 'left'})
-            if (mail.html)
-                doc.text(mail.html, {width: textWidth, align: 'left'})
 
-            doc.end();
+            if (attachementsStr.length > 0) {
+                doc.moveDown(0.5)
+                doc.fontSize(fontSize.title)
+                //  doc.fontcolor("red")
+                doc.text('Attachments removed : ', {width: textWidth, align: 'left'})
+                doc.fontSize(fontSize.text)
+                doc.text(attachementsStr, {width: textWidth, align: 'left'})
 
-            callback(null, {path: relativeFolderPath, file: pdfFileName});
+            }
+          /*  if (mail.references && mail.references.length > 0) {
+                doc.moveDown(0.5)
+                doc.fontSize(fontSize.title)
+                //  doc.fontcolor("red")
+                doc.text('References : ', {width: textWidth, align: 'left'})
+                doc.fontSize(fontSize.small)
+                for (var i = 0; i < mail.references.length; i++) {
+                    doc.text(mail.references[i] + "\n", {width: textWidth, align: 'left'})
+                }
+
+            }*/
+
         }
-        catch (e) {
-            callback(e)
-        }
+
+        doc.moveDown(0.5)
+        doc.fontSize(fontSize.title)
+        doc.text('text : ', {width: textWidth, align: 'left'})
+        doc.fontSize(fontSize.small)
+        if (mail.text)
+            doc.text(mail.text, {width: textWidth, align: 'left'})
+        if (mail.html)
+            doc.text(mail.html, {width: textWidth, align: 'left'})
+
+        doc.end();
+
+        callback(null, {path: relativeFolderPath, file: pdfFileName});
+        /*   }
+         catch (e) {
+         callback(e)
+         }*/
     },
     formatStringForArchive: function (str, maxLength) {
         str = common.toAscii(common.truncate(str, maxLength));
         str = str.replace(/ /g, "_");
-        str = common.replaceNonLetterOrNumberChars(str, "")
+        str = common.replaceNonLetterOrNumberChars(str, "");
+        str = str.replace(/_/g, "-");
         return str;
     },
-    removeMaultipleReAndFwd: function (str) {
-        var re = /Re[_:]/gi
-        var fwd = /Fwd[_:]/gi
+    removeMultipleReAndFwdInTitle: function (str) {
+        var re = /Re[-_:]/gi
+        var fwd = /Fwd[-_:]/gi;
+        var str0 = str;
 
         var reArray = str.match(re);
-        if (reArray && reArray.length > 1)
-            str = "Re-" + reArray.length + "_" + str.replace(re, "");
-        var fwdArray = str.match(fwd);
-        if (fwdArray && fwdArray.length > 1)
-            str = "Fwd-" + fwdArray.length + "_" + str.replace(fwd, "");
+        if (reArray && reArray.length > 1) {
+            //  str = "Re-" + reArray.length + "-" + str.replace(re, "");
+            str = str.replace(re, "") + "-Re-" + reArray.length;
+        }
+        else if (reArray && reArray.length == 1) {// on met Re_ en fin
+            str = str.replace(re, "") + "-Re"
+        }
+        var fwdArray = str0.match(fwd);
+        if (fwdArray && fwdArray.length > 1) {
+
+            str = str.replace(re, "") + "-Fwd-" + fwdArray.length;
+        }
+        else if (reArray && reArray.length == 1) {// on met Re_ en fin
+            str = str.replace(re, "") + "-Fwd"
+        }
         return str;
     },
     removeHtmlTags: function (str) {
         str = str.replace(/<\/p>/gi, "\n");
         str = str.replace(/<BR>/gi, "\n");
         str = str.replace(/<[^>]*>/gi, "");
+
+        //specific CF
+        str = str.replace(/&nbsp;/gi, "");
+        str = str.replace(/@import.*/gi, "");
+        str = str.replace(/[™•]+.*/gm, "");
+
+
+        return str;
     },
+    processDuplicateMailTitles: function (parentDirPath, pdfFileName) {
+        var i = 0;
+        var isDuplicate = false
+        var prefix = ""
+        do {
+            isDuplicate = fs.existsSync(path.resolve(parentDirPath + "/" + prefix + pdfFileName));
+            if (isDuplicate) {
+                i++;
+                prefix = "" + i;
+            }
+            else {
+                return pdfFileName.substring(0, pdfFileName.indexOf(".pdf")) + prefix + ".pdf";
+            }
+
+        } while (i < 100)
+        return pdfFileName;
+
+    }
 
 
 }

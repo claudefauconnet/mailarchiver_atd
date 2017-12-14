@@ -23,7 +23,6 @@
     "pug": "^2.0.0-beta10",
     "serve-favicon": "^2.4.4",
     "socket.io": "^1.7.4",
-
     "concat-stream": "^1.6.0",
     "extract-zip": "^1.6.5",
     "json-2-csv": "^2.1.1",
@@ -33,7 +32,8 @@
     "nedb": "^1.8.0",
     "pdfkit": "^0.8.3",
     "unzip": "^0.1.11",
-    "zip-dir": "latest"
+    "zip-dir": "latest",
+    "html-entities":"latest"
   },
   "devDependencies": {},
   "scripts": {
@@ -47,5 +47,13 @@
     "thunderbird"
   ],
   "author": "Claude Fauconnet",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claudefauconnet/mailarchiver_atd.git"
+  },
+  "bugs": {
+    "url": "https://github.com/claudefauconnet/mailarchiver_atd/issues"
+  },
+  "homepage": "https://github.com/claudefauconnet/mailarchiver_atd#readme"
 }

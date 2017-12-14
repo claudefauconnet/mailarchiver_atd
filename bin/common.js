@@ -26,11 +26,13 @@
  ******************************************************************************/
 var common = {
 
-    maxPdfSubjectLength: 50,
+    maxPdfSubjectLength: 33,//45 - date (10)- number(2)
     maxDirLength: 30,
 
 
     dateToString: function (date) {
+        if(!date)
+            return "---"
         var mm = date.getMonth() + 1; // getMonth() is zero-based
         var dd = date.getDate();
 

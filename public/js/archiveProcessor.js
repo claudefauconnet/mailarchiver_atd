@@ -40,18 +40,27 @@ var archiveProcessor = (function () {
     self.currentDirName = "";
     self.stopAsync = null;
     self.currentLang = "FR;"
-self.totalCountUploadedMails=0;
-    self.totalCountMailsWithAttachements=0;
+    self.totalCountUploadedMails = 0;
+    self.totalCountMailsWithAttachements = 0;
     self.currentAction;
     self.dirStatus = {};
+    self.parentDirSubDirsNames = [];
+
+
+
+    var currentDirSubjects = {};
+    var messageIds = {}
 
 
     self.readData = function (data, action, callback) {
         self.stopAsync = null;
         self.currentNumberOfLevels = 0;
         self.totalCountMails = 0;
-        self.totalCountUploadedMails=0;
-        self.totalCountMailsWithAttachements=0;
+        self.totalCountUploadedMails = 0;
+        self.totalCountMailsWithAttachements = 0;
+        self.dirStatus = {};
+        self.parentDirSubDirsNames = [];
+
         async.eachSeries(data, function (item, callbackInner) {
             item = item.webkitGetAsEntry();
             if (item) {
@@ -69,9 +78,9 @@ self.totalCountUploadedMails=0;
             }
         }, function (err) {
             if (err) {
-              return   callback(err);
+                return callback(err);
             }
-           // console.log(JSON.stringify(self.dirStatus, null, 2))
+            // console.log(JSON.stringify(self.dirStatus, null, 2))
             var recursiveJobDone = true;
             for (var key in self.dirStatus) {
                 if (self.dirStatus[key].status != "done")
@@ -91,7 +100,7 @@ self.totalCountUploadedMails=0;
             return traverseFileCallback(self.stopAsync);
 
         if (item.isFile) {
-            self.dirStatus[item.name] = {status: "processing", infos: [],type:"eml",status:"processing"};
+            self.dirStatus[item.name] = {status: "processing", infos: [], type: "eml", status: "processing"};
             item.file(function (file) {
                 var reader = new FileReader();
                 reader.onload = function (event) {
@@ -110,10 +119,12 @@ self.totalCountUploadedMails=0;
 
             })
         } else if (item.isDirectory) {// check rules and apply recursive exploration of dirs
+            currentDirSubjects = {};
+
             var dirReader = item.createReader();
             dirReader.readEntries(function (entries) {
 
-                self.dirStatus[item.fullPath] = {status: "processing", infos: [],type:"dir",status:"done"};
+                self.dirStatus[item.fullPath] = {status: "processing", infos: [], type: "dir", status: "done"};
 
 
                 if (self.currentAction = "checkRules") {
@@ -149,6 +160,7 @@ self.totalCountUploadedMails=0;
 
     self.uploadArchiveFileToServer = function (event, emlFileName, emlFileFullPath, callback) {
         var emlContent64 = event.target.result;
+        messageIds = {};
         self.dirCountMails = 0
         self.extractMailsFromEmx(emlContent64, emlFileName, function (err, mails) {
             // for each email in eml
@@ -158,15 +170,22 @@ self.totalCountUploadedMails=0;
 
                 if (self.stopAsync != null)
                     return callback("stop");
-                var subject=self.extractMailSubject(mail)
-                self.totalCountMails += 1;
-                self.dirCountMails += 1;
-                mail=self.checkIfMailIsWithoutAttachements(mail,subject, emlFileName);
-
-
+                var subject = self.extractMailSubject(mail);
+                var messageId = self.extractMessageId(mail);
+                //  var hashKey=self.hashCode(mail);
+                if (!messageIds[messageId]) {
+                    messageIds[messageId] = 1;
+                    self.totalCountMails += 1;
+                 //   var xxx = self.extractContentTypes(mail);
+                    mail = attachmentProcessor.removeAttachments(mail, subject, emlFileName);
+               //     mail = self.checkIfMailIsWithoutAttachements(mail, subject, emlFileName);
                     mailsToUpload.push(mail);
 
+                }
+
             }
+         //   console.log(JSON.stringify(messageIds, null, 2))
+            self.dirCountMails = mailsToUpload.length;
             async.eachSeries(mailsToUpload, function (mail, eachCallBack) {
                     var message = emlFileName + " " + subject + " : "
                     var payload = {
@@ -205,7 +224,7 @@ self.totalCountUploadedMails=0;
                         self.stopAsync = true;
                         return callback(err);
                     }
-                    self.messageText += "dossier " + emlFileFullPath + " terminé nombre de mails importés : " + self.dirCountMails + "<br>";
+                    self.messageText += emlFileFullPath + resources.Message_dirProcessed[self.currentLang] + self.totalCountUploadedMails + "<br>";
                     setMessage(self.messageText, "green")
                     $("body").css("cursor", "default");
 
@@ -231,22 +250,21 @@ self.totalCountUploadedMails=0;
 
         emlContent64 = emlContent64.substring(p + 7)
         try {
-          //  emlContent = util.decode64(emlContent64);
-           // emlContent = util.decode64ToUTF8(emlContent64);
-            emlContent=Base64.decode(emlContent64);
+            //  emlContent = util.decode64(emlContent64);
+            // emlContent = util.decode64ToUTF8(emlContent64);
+            emlContent = Base64.decode(emlContent64);
 
         }
         catch (e) {
             console.log(e);
-            try{
+            try {
                 emlContent = util.decode64(emlContent64);
             }
-            catch(e2){
+            catch (e2) {
                 callback(resources.Exception_emlFileNotInBase64[self.currentLang] + " : " + fileName)
             }
 
         }
-
 
 
         var mails = []
@@ -265,9 +283,10 @@ self.totalCountUploadedMails=0;
         return callback(null, mails)
     }
 
-    self.extractMailSubject = function (mail) {
-        var subject = mail.match(/[\n]Subject:(.*)/);
 
+    self.extractMailSubject = function (mail) {
+        //  var subject = mail.match(/[\n]Subject:(.*)/);
+        var subject = mail.match(/^Subject:(.*)$/gm)
         if (Array.isArray(subject))
             subject = subject[0];
         if (!subject)
@@ -276,37 +295,43 @@ self.totalCountUploadedMails=0;
             subject = subject.substring(0, 50) + "...";
         return subject;
     }
-    self.checkIfMailIsWithoutAttachements = function (mail, subject, emlFileName) {
-
-     //   if (mail.length > (self.mailMaxSize * 1000)) {
-        var p=mail.indexOf("Content-Transfer-Encoding: base64")
-        if(p>-1){
-            self.totalCountMailsWithAttachements+=1;
-          //  console.log("\n----------------"+mail.substring(p,p+100)+"\n******************")
-            var message = emlFileName + "/" + subject + " : " + resources.Warning_mailWithAttachment[self.currentLang];
-
-            self.dirStatus[emlFileName].infos.push(message)
-            return mail.substring(0,p);
-        }
-        return mail;
+    self.extractMessageId= function (mail) {
+        //  var subject = mail.match(/[\n]Subject:(.*)/);
+        var array = /Message-ID:(.*)/gm.exec(mail)
+     if(array && array.length==2)
+         return array[1].trim()
+        return null;
     }
 
 
+
+
+
 //************************************rules*******************************************
+    //   a sbd dir cannot be in the same dir than a eml file with the same name
     self.checkRuleFileAnDirAtSameLevel = function (entries, callback) {
         var hasDir = false;
         var hasMails = false;
+        var subDirNames = [];
 
         for (var i = 0; i < entries.length; i++) {
-            if (entries[i].name.indexOf(".sbd") > -1)//dir
-                hasDir = true;
-            else
-                hasMails = true;
 
-            if (hasDir && hasMails)
-                return callback(resources.Exception_fileAnDirAtSameLevel[self.currentLang] + " : " + entries[i].name)
+            var name = entries[i].name;
+            var p = name.indexOf(".sbd");
+            if (p > -1) {//dir
+                self.parentDirSubDirsNames.push(name.substring(0, p))
+                //   subDirNames.push(name.substring(0, p));
+            }
+
+            else {//emlFile
+                if (self.parentDirSubDirsNames.indexOf(name) > -1)
+                    return callback(resources.Exception_fileAnDirAtSameLevel[self.currentLang] + " : " + emlFileNames[i])
+
+            }
+
         }
 
+        //  self.parentDirSubDirsNames=[];
         return callback(null);
 
 
@@ -335,6 +360,20 @@ self.totalCountUploadedMails=0;
             type += " : "
         $("#message").append("<br>" + type + message);
     }
+
+  
+
+
+    self.hashCode = function (s) {
+        return s.split("").reduce(function (a, b) {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a
+        }, 0);
+    }
+
+
+
+
 
 
     return self;

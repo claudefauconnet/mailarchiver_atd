@@ -32,9 +32,10 @@ var path = require('path');
 var converter = require('json-2-csv');
 var extract = require('extract-zip')
 var simpleParser = require('mailparser').simpleParser;
+const Entities = require('html-entities').XmlEntities;
 var zipdir = require('zip-dir');
 var common = require("./common.js")
-
+const entities = new Entities();
 
 var localDB = require('./localDB.js');
 var mailPdfGenerator = require('./mailPdfGenerator.js');
@@ -45,14 +46,30 @@ var uploadDir = path.normalize(__dirname + "/uploads");
 var mailManager = {
 
     processEML: function (eml, fileName, fullPath, sender, callback) {
+    //    console.log(eml)
         simpleParser(eml, {}, function (err, mail) {
             if (err)
                 return callback(err);
             var mail2 = mail;
+           // console.log(JSON.stringify(mail,null,2))
             //  console.log(fullPath + "   " + mail.subject + "  " + mail.date);
             var date = new Date();
-            var senderDirDate = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + (date.getDate() + 1)
+            if( mail.subject) {
+                mail.subject =entities.decode( mail.subject );
+            }
+            if( mail.text) {
+                mail.text =entities.decode( mail.text );
+            }
+            if( mail.html) {
+                mail.html =entities.decode( mail.html );
+            }
+            if( mail.textAsHtml) {
+                mail.textAsHtml =entities.decode( mail.textAsHtml );
+            }
+
+            var senderDirDate = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + (date.getDate() )
             mailPdfGenerator.createMailPdf(mail, fileName, fullPath, sender, senderDirDate, function (err, result) {
+
                 if (err)
                     return callback(err);
 
@@ -60,9 +77,9 @@ var mailManager = {
                     sender: sender,
                     path: result.path,
                     file: result.file,
-
-
+                    messageId :mail.messageId
                 }
+
                 if (mail.from)
                     obj.from = mail.from.text;
                 if (mail.to)
@@ -70,9 +87,21 @@ var mailManager = {
                 if (mail.subject)
                     obj.subject = mail.subject;
                 if (mail.date)
-                    obj.date = mail.date,
+                    obj.date = mail.date;
+                if (mail.text)
+                    obj.textSize = mail.text.length;
+                else
+                    obj.textSize=0
+                if (mail.html)
+                    obj.htmlSize = mail.html.length;
+                else
+                    obj.htmlSize=0
+                if (mail.textAsHtml)
+                    obj.textAsHtml = mail.textAsHtml.length;
+                else
+                    obj.textAsHtml
 
-                        localDB.store(obj, function (err, result) {
+                localDB.store(obj, function (err, result) {
                             if (err) {
                                 console.log(err);
                                 return callback(err);
@@ -258,9 +287,19 @@ var mailManager = {
 
     }
 }
+if(false) {
+    var eml = "" + fs.readFileSync("../public/pdfArchives/level1.eml")
+    simpleParser(eml, {}, function (err, mail) {
+      //  console.log("pdfFileName ******************************")
+        console.log(mail.subject+"   "+mail.messageId)
+   /*     console.log("text ******************************")
+        console.log(mail.message)
+        console.log("html ******************************")
+        console.log(mail.html)
+        console.log("textAsHtml ******************************")
+        console.log(mail.textAsHtml)
+        console.log(" ******************************")*/
 
-
-//mailManager.findMails({},"csv",function(err,result){
-
-//})
+    })
+}
 module.exports = mailManager;

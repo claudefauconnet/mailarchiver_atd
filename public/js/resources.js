@@ -70,10 +70,17 @@ var resources = {
         SP: "mail traité ",
 
 
+    },
+
+    Message_dirProcessed: {
+        FR: " dossier traité , nombre total de mails importés : ",
+        EN: " dossier traité , nombre total de mails importés : ",
+        SP: " dossier traité , nombre total de mails importés : "
+
     }
     ,
     Button_seeResultInfo: {
-        FR: "Detail de 'import",
+        FR: "Detail de l'import",
         EN: "Detail de 'import",
         SP: "Detail de 'import",
     }
