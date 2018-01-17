@@ -118,6 +118,13 @@ mailPdfGenerator = {
                     doc.info.Title = mail.subject;
                 if (mail.from)
                     doc.info.Author = mail.from.text;
+                if (mail.date)
+                    doc.info.CreationDate = mail.date;
+
+
+              //  doc.info.Keywords=""+mail.subject+","+mail.from.text+","+mail.to.text
+
+
             }
 
 
