@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var mailManager=require('../bin/mailManager.js');
+var mailManager=require('./bin/mailManager.js');
 
 /* GET home page. */
 
